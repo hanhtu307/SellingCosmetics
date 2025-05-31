@@ -9,6 +9,8 @@ if ($resultSliders) {
     while ($row = $resultSliders->fetch_assoc()) {
         $sliders[] = $row;
     }
+} else {
+    error_log("SQL Error (sliders): " . $conn->error, 3, "errors.log");
 }
 
 // Truy vấn sản phẩm khuyến mãi (lấy 8 sản phẩm có price < 1000000)
@@ -18,6 +20,8 @@ if ($resultPromotionProducts) {
     while ($row = $resultPromotionProducts->fetch_assoc()) {
         $promotion_products[] = $row;
     }
+} else {
+    error_log("SQL Error (promotion_products): " . $conn->error, 3, "errors.log");
 }
 
 // Truy vấn sản phẩm nổi bật
@@ -27,6 +31,8 @@ if ($resultFeaturedProducts) {
     while ($row = $resultFeaturedProducts->fetch_assoc()) {
         $featured_products[] = $row;
     }
+} else {
+    error_log("SQL Error (featured_products): " . $conn->error, 3, "errors.log");
 }
 
 // Kiểm tra sản phẩm yêu thích của người dùng (nếu đã đăng nhập)
@@ -102,7 +108,7 @@ if ($row = $result->fetch_assoc()) {
     .modal {
         display: none;
         position: fixed;
-        z-index: 1000;
+        z-index: 2000;
         left: 0;
         top: 0;
         width: 100%;
@@ -120,6 +126,8 @@ if ($row = $result->fetch_assoc()) {
         max-width: 1000px;
         position: relative;
         box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        max-height: 80vh;
+        overflow-y: auto;
     }
 
     .close {
@@ -241,6 +249,69 @@ if ($row = $result->fetch_assoc()) {
     .favorite-btn.favorited:hover {
         background: #c73a5f;
     }
+
+    /* Header cố định */
+    header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        z-index: 1000;
+    }
+
+    /* Nội dung chính */
+    body {
+        overflow-y: auto;
+        margin: 0;
+    }
+
+    body.modal-open {
+        overflow: hidden;
+    }
+
+    .main-content {
+        margin-top: 200px; /* Điều chỉnh dựa trên chiều cao header */
+        overflow-y: auto;
+        min-height: 100vh;
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Thanh cuộn cho khung tin tức */
+    #tinTucBox {
+        background-color: white;
+        padding: 30px;
+        border-radius: 4px;
+        display: none;
+        margin-top: 16px;
+        position: relative;
+        max-height: 80vh; /* Giới hạn chiều cao */
+        overflow-y: auto; /* Kích hoạt thanh cuộn */
+        z-index: 2000;
+    }
+
+    #tinTucBox::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    #tinTucBox::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+
+    #tinTucBox::-webkit-scrollbar-thumb {
+        background: #e84a70;
+        border-radius: 4px;
+    }
+
+    #tinTucBox::-webkit-scrollbar-thumb:hover {
+        background: #c73a5f;
+    }
+
+    #tinTucBox {
+        scrollbar-width: thin;
+        scrollbar-color: #e84a70 #f1f1f1;
+    }
 </style>
 
 <body>
@@ -291,6 +362,11 @@ if ($row = $result->fetch_assoc()) {
                     <a href="bank.php" class="settings-item">Tài khoản / Thẻ ngân hàng</a>
                 </div>
                 <div class="settings-section">
+                    <div class="settings-title">Đơn hàng của tôi</div>
+                    <a href="my_orders.php" class="settings-item">Đơn hàng</a>
+                    <a href="my_favorites.php" class="settings-item">Yêu thích</a>
+                </div>
+                <div class="settings-section">
                     <div class="settings-title">Quản lí</div>
                     <?php
                     $username = isset($_SESSION['username']) ? $_SESSION['username'] : '';
@@ -310,7 +386,7 @@ if ($row = $result->fetch_assoc()) {
         <nav class="navbar">
             <a href="home.php"><i class="fa-solid fa-house"></i></a>
             <a href="#" onclick="openGioiThieu()">Giới thiệu</a>
-            <a href="#" onclick="openDichVu()">Dịch vụ</a>
+            <a href="#" onclick="openTinTuc()">Tin tức</a>
             <a href="vouchers.php">Voucher</a>
             <a href="contact.php">Liên hệ</a>
         </nav>
@@ -330,19 +406,32 @@ if ($row = $result->fetch_assoc()) {
             <p><strong>Sứ mệnh:</strong> Chúng tôi tin rằng đẹp là khi bạn tự tin là chính mình.</p>
         </div>
 
-        <!-- Khung dịch vụ -->
-        <div id="dichVuBox" style="background-color: #fff0f5; padding: 30px; border-radius: 4px; display: none; margin-top: 16px; position: relative;">
-            <span onclick="closeDichVu()" style="position: absolute; top: 10px; right: 20px; font-size: 24px; cursor: pointer;">×</span>
+        <!-- Khung tin tức -->
+        <div id="tinTucBox" style="background-color: #fff0f5; padding: 30px; border-radius: 4px; display: none; margin-top: 16px; position: relative;">
+            <span onclick="closeTinTuc()" style="position: absolute; top: 10px; right: 20px; font-size: 24px; cursor: pointer;">×</span>
             <h2 style="color: #e84a70;">
-                <i class="fas fa-concierge-bell"></i> Dịch vụ của Luna Beauty
+                <i class="fas fa-newspaper"></i> Tin tức mới nhất từ Luna Beauty
             </h2>
-            <ul style="line-height: 1.8; font-size: 16px; list-style: none; padding-left: 0;">
-                <li><i class="fas fa-comments"></i> <strong>Tư vấn chăm sóc da miễn phí</strong> theo từng loại da & tình trạng da.</li>
-                <li><i class="fas fa-shipping-fast"></i> <strong>Giao hàng nhanh toàn quốc</strong>, hỗ trợ kiểm tra trước khi nhận.</li>
-                <li><i class="fas fa-exchange-alt"></i> <strong>Đổi/trả hàng dễ dàng</strong> trong vòng 7 ngày nếu có lỗi.</li>
-                <li><i class="fas fa-gift"></i> <strong>Gói quà miễn phí</strong> – gửi lời chúc yêu thương đến người nhận.</li>
-                <li><i class="fas fa-gem"></i> <strong>Ưu đãi khách hàng thân thiết</strong> – tích điểm & nhận voucher giảm giá.</li>
-            </ul>
+            <div class="news-list">
+                <?php if (empty($promotion_products)): ?>
+                    <p>Không có tin tức nào hiện tại.</p>
+                <?php else: ?>
+                    <?php foreach ($promotion_products as $product): ?>
+                        <div class="news-item" style="display: flex; align-items: center; margin-bottom: 20px;">
+                            <img src="<?php echo htmlspecialchars($product['product_image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px; margin-right: 20px;">
+                            <div class="news-content">
+                                <h3 style="margin: 0; font-size: 18px;"><?php echo htmlspecialchars($product['name']); ?></h3>
+                                <p style="margin: 5px 0;">Giá: <span style="color: #e84a70;"><?php echo number_format($product['price'], 0, ',', '.'); ?>đ</span>
+                                    <?php if ($product['old_price'] > 0): ?>
+                                        <span style="text-decoration: line-through; color: #999;">(<?php echo number_format($product['old_price'], 0, ',', '.'); ?>đ)</span>
+                                    <?php endif; ?>
+                                </p>
+                                <a href="product_detail.php?id=<?php echo htmlspecialchars($product['id']); ?>" style="color: #e84a70; text-decoration: none;">Xem chi tiết</a>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
         </div>
     </header>
 
@@ -369,7 +458,7 @@ if ($row = $result->fetch_assoc()) {
                     <a href="perfume.php" class="category-item__link">Perfume</a>
                 </li>
             </ul>
-            <!-- Mục Khuyến mãi tháng 5 với biểu tượng món quà -->
+            <!-- Mục Khuyến mãi tháng 6 với biểu tượng món quà -->
             <div class="category-promotion">
                 <a href="javascript:void(0)" class="category-promotion__link" onclick="openPromotionModal()">
                     <i class="fas fa-gift"></i> Khuyến mãi tháng 6
@@ -380,7 +469,7 @@ if ($row = $result->fetch_assoc()) {
         <!-- Modal khuyến mãi -->
         <div id="promotionModal" class="modal">
             <div class="modal-content">
-                <span class="close" onclick="closePromotionModal()">&times;</span>
+                <span class="close" onclick="closePromotionModal()">×</span>
                 <h2 class="modal-title">Khuyến Mãi Tháng 6</h2>
                 <h3><i>*Chào hè tháng 6 LunaShop chúng tôi giảm giá 20% cho một số sản phẩm, xin cảm ơn quý khách hàng đã luôn ủng hộ cửa hàng của chúng tôi</i></h3>
                 <div class="modal-product-list">
@@ -458,7 +547,7 @@ if ($row = $result->fetch_assoc()) {
                                 <span class="new-price"><?php echo number_format($product['price'], 0, ',', '.'); ?>đ</span>
                             </div>
                             <div class="extra-info">
-                                <span class="rating">⭐ <?php echo htmlspecialchars($product['rating']); ?> | Đã bán <?php echo number_format($product['sold'] / 1000); ?></span>
+                                <span class="rating">★ <?php echo htmlspecialchars($product['rating']); ?> | Đã bán <?php echo number_format($product['sold'], 0, ',', '.'); ?></span>
                                 <span class="location"><?php echo htmlspecialchars($product['location']); ?></span>
                             </div>
                             <div class="product-actions">
@@ -489,32 +578,39 @@ if ($row = $result->fetch_assoc()) {
 
         function openGioiThieu() {
             document.getElementById("gioiThieuBox").style.display = "block";
+            document.body.classList.add("modal-open");
         }
 
         function closeGioiThieu() {
             document.getElementById("gioiThieuBox").style.display = "none";
+            document.body.classList.remove("modal-open");
         }
 
-        function openDichVu() {
-            document.getElementById("dichVuBox").style.display = "block";
+        function openTinTuc() {
+            document.getElementById("tinTucBox").style.display = "block";
+            document.body.classList.add("modal-open");
         }
 
-        function closeDichVu() {
-            document.getElementById("dichVuBox").style.display = "none";
+        function closeTinTuc() {
+            document.getElementById("tinTucBox").style.display = "none";
+            document.body.classList.remove("modal-open");
         }
 
         function openPromotionModal() {
             document.getElementById("promotionModal").style.display = "block";
+            document.body.classList.add("modal-open");
         }
 
         function closePromotionModal() {
             document.getElementById("promotionModal").style.display = "none";
+            document.body.classList.remove("modal-open");
         }
 
         window.onclick = function(event) {
             const modal = document.getElementById("promotionModal");
             if (event.target == modal) {
                 modal.style.display = "none";
+                document.body.classList.remove("modal-open");
             }
             const settingsPage = document.querySelector(".settings-page");
             const settingsIcon = document.querySelector(".setting-icon");
