@@ -617,6 +617,120 @@ foreach ($reviews as $review) {
                     price: 264000
                 }
             ],
+
+            //bodycare
+
+            21: [{
+                    name: 'ARBUTIN + RAU MÁ 250G',
+                    img: 'assets/images/p514.jpg',
+                    price: 485000
+                },
+                {
+                    name: 'ARBUTIN + RAU MÁ 500G',
+                    img: 'assets/images/p515.jpg',
+                    price: 267300
+                }
+            ],
+            22: [{
+                    name: '30ml',
+                    img: 'assets/images/p224.jpg',
+                    price: 315000
+                },
+                {
+                    name: '50ml',
+                    img: 'assets/images/p225.jpg',
+                    price: 500000
+                }
+            ],
+            23: [{
+                    name: 'Vỉ trắng arbutin',
+                    img: 'assets/images/p234.jpg',
+                    price: 45000
+                },
+                {
+                    name: 'Dưỡng thể Snail Gold',
+                    img: 'assets/images/p235.jpg',
+                    price: 98000
+                }
+            ],
+            24: [{
+                    name: '250ml',
+                    img: 'assets/images/p244.jpg',
+                    price: 89000
+                },
+                {
+                    name: '400ml',
+                    img: 'assets/images/p245.jpg',
+                    price: 990000
+                }
+            ],
+            25: [{
+                    name: '300ml',
+                    img: 'assets/images/p254.jpg',
+                    price: 79000
+                },
+                {
+                    name: '500ml',
+                    img: 'assets/images/p255.jpg',
+                    price: 99000
+                }
+            ],
+            26: [{
+                    name: '300ml',
+                    img: 'assets/images/p264.jpg',
+                    price: 118000
+                },
+                {
+                    name: '500ml',
+                    img: 'assets/images/p265.jpg',
+                    price: 210000
+                }
+            ],
+            27: [{
+                    name: '500ml',
+                    img: 'assets/images/p274.jpg',
+                    price: 977000
+                },
+                {
+                    name: '750ml',
+                    img: 'assets/images/p275.jpg',
+                    price: 1000000
+                }
+            ],
+            28: [{
+                    name: '300ml',
+                    img: 'assets/images/p284.jpg',
+                    price: 355000
+                },
+                {
+                    name: '600ml',
+                    img: 'assets/images/p285.jpg',
+                    price: 400000
+                }
+            ],
+            29: [{
+                    name: '450ml',
+                    img: 'assets/images/p294.jpg',
+                    price: 138000
+                },
+                {
+                    name: '600ml',
+                    img: 'assets/images/p295.jpg',
+                    price: 150000
+                }
+            ],
+            30: [{
+                    name: 'Into the night',
+                    img: 'assets/images/p304.jpg',
+                    price: 259000
+                },
+                {
+                    name: 'Gingham',
+                    img: 'assets/images/p305.jpg',
+                    price: 245000
+                }
+            ],
+
             // haircare
             31: [{
                     name: 'XBUOI_SVANG',
@@ -640,6 +754,102 @@ foreach ($reviews as $review) {
                     price: 589000
                 }
             ],
+
+            33: [{
+                    name: 'Tóc thường',
+                    img: 'assets/images/p334.jpg',
+                    price: 217000
+                },
+                {
+                    name: 'Phục hồi tóc',
+                    img: 'assets/images/p335.jpg',
+                    price: 316000
+                }
+            ],
+
+            34: [{
+                    name: '300gr',
+                    img: 'assets/images/p344.jpg',
+                    price: 46000
+                },
+                {
+                    name: '500gr',
+                    img: 'assets/images/p344.jpg',
+                    price: 54000
+                }
+            ],
+
+            35: [{
+                    name: 'Olaplex  No0 155ml',
+                    img: 'assets/images/p354.jpg',
+                    price: 599000
+                },
+                {
+                    name: 'Olaplex  No4 155ml',
+                    img: 'assets/images/p355.jpg',
+                    price: 599000
+                }
+            ],
+
+            36: [{
+                    name: 'Serum bóng tóc',
+                    img: 'assets/images/p364.jpg',
+                    price: 250000
+                },
+                {
+                    name: 'Tinh chất essence',
+                    img: 'assets/images/p365.jpg',
+                    price: 250000
+                }
+            ],
+
+            37: [{
+                    name: '120ml',
+                    img: 'assets/images/p374.jpg',
+                    price: 69000
+                },
+                {
+                    name: '250ml',
+                    img: 'assets/images/p375.jpg',
+                    price: 69000
+                }
+            ],
+
+            38: [{
+                    name: 'DG Oil + ST Pore 400ml',
+                    img: 'assets/images/p384.jpg',
+                    price: 242000
+                },
+                {
+                    name: 'DG Oil Control 400ml',
+                    img: 'assets/images/p385.jpg',
+                    price: 159000
+                }
+            ],
+
+            39: [{
+                    name: '150ml',
+                    img: 'assets/images/p394.jpg',
+                    price: 260000
+                },
+                {
+                    name: '240ml',
+                    img: 'assets/images/p395.jpg',
+                    price: 300000
+                }
+            ],
+
+            40: [{
+                    name: '500gr',
+                    img: 'assets/images/p404.jpg',
+                    price: 383000
+                },
+                {
+                    name: '700gr',
+                    img: 'assets/images/p405.jpg',
+                    price: 430000
+                }
+            ],
             // perfume
             41: [{
                     name: '10ml',
@@ -654,15 +864,100 @@ foreach ($reviews as $review) {
             ],
             42: [{
                     name: '10ml',
-                    img: 'assets/images/p422.jpg',
+                    img: 'assets/images/p427.jpg',
                     price: 264000
                 },
                 {
                     name: '30ml',
-                    img: 'assets/images/p423.jpg',
+                    img: 'assets/images/p427.jpg',
                     price: 264000
                 }
-            ]
+            ],
+
+            43: [
+                {
+                    name: '30ml',
+                    img: 'assets/images/p438.jpg',
+                    price: 264000
+                }
+            ],
+            44: [{
+                    name: '10ml',
+                    img: 'assets/images/p443.jpg',
+                    price: 264000
+                },
+                {
+                    name: '30ml',
+                    img: 'assets/images/p445.jpg',
+                    price: 264000
+                }
+            ],
+            45: [{
+                    name: '10ml',
+                    img: 'assets/images/p454.jpg',
+                    price: 264000
+                },
+                {
+                    name: '30ml',
+                    img: 'assets/images/p455.jpg',
+                    price: 264000
+                }
+            ],
+            46: [{
+                    name: '10ml',
+                    img: 'assets/images/p464.jpg',
+                    price: 264000
+                },
+                {
+                    name: '30ml',
+                    img: 'assets/images/p465.jpg',
+                    price: 264000
+                }
+            ],
+            47: [{
+                    name: 'Bouncy 50ml',
+                    img: 'assets/images/p474.jpg',
+                    price: 264000
+                },
+                {
+                    name: 'Urban 50ml',
+                    img: 'assets/images/p475.jpg',
+                    price: 264000
+                }
+            ],
+             48: [{
+                    name: '10ml',
+                    img: 'assets/images/p484.jpg',
+                    price: 264000
+                },
+                {
+                    name: '30ml',
+                    img: 'assets/images/p484.jpg',
+                    price: 264000
+                }
+            ],
+            49: [{
+                    name: 'LE MALE LE PARFUM',
+                    img: 'assets/images/p493.jpg',
+                    price: 264000
+                },
+                {
+                    name: 'LE MALE ELIXIR',
+                    img: 'assets/images/p494.jpg',
+                    price: 264000
+                }
+            ],
+            50: [{
+                    name: '10ml',
+                    img: 'assets/images/p504.jpg',
+                    price: 264000
+                },
+                {
+                    name: '30ml',
+                    img: 'assets/images/p505.jpg',
+                    price: 264000
+                }
+            ],
         };
 
         function loadVariants(productId) {
