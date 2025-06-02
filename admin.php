@@ -43,22 +43,85 @@ $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $search = strtolower($search);
 
 // Lấy dữ liệu thống kê
-$totalOrders = 0;
-$itemsSold = 0;
+$totalStock = 0;
+$itemProduct = 0;
 $itemsDelivering = 0;
-$itemsCommented = 0;
+$itemsCustomer = 0;
+$monthlyComments = [];
+$resultComments = $conn->query("
+    SELECT 
+        DATE_FORMAT(created_at, '%Y-%m') AS month,
+        COUNT(*) AS total_comments
+    FROM product_reviews
+    WHERE YEAR(created_at) = YEAR(CURDATE())
+    GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+    ORDER BY month ASC
+");
+if ($resultComments) {
+    while ($row = $resultComments->fetch_assoc()) {
+        $monthlyComments[] = [
+            'month' => $row['month'],
+            'total_comments' => (int)$row['total_comments']
+        ];
+    }
+}
 
-$resultOrders = $conn->query("SELECT COUNT(*) as total FROM orders");
-if ($resultOrders) $totalOrders = $resultOrders->fetch_assoc()['total'];
+// Lấy số lượng sản phẩm bán được theo tháng
+$monthlyProductsSold = [];
+$resultProductsSold = $conn->query("
+    SELECT 
+        DATE_FORMAT(o.created_at, '%Y-%m') AS month,
+        SUM(oi.quantity) AS total_sold
+    FROM orders o
+    LEFT JOIN order_items oi ON o.id = oi.order_id
+    WHERE YEAR(o.created_at) = YEAR(CURDATE())
+    GROUP BY DATE_FORMAT(o.created_at, '%Y-%m')
+    ORDER BY month ASC
+");
+if ($resultProductsSold) {
+    while ($row = $resultProductsSold->fetch_assoc()) {
+        $monthlyProductsSold[] = [
+            'month' => $row['month'],
+            'total_sold' => (int)($row['total_sold'] ?? 0)
+        ];
+    }
+}
 
-$resultProducts = $conn->query("SELECT SUM(quantity) as sold FROM order_items");
-if ($resultProducts) $itemsSold = $resultProducts->fetch_assoc()['sold'] ?? 0;
+// Lấy dữ liệu doanh thu theo tháng
+$monthlyRevenue = [];
+$resultRevenue = $conn->query("
+    SELECT 
+        DATE_FORMAT(created_at, '%Y-%m') AS month,
+        SUM(final_total) AS revenue
+    FROM orders
+    WHERE YEAR(created_at) = YEAR(CURDATE())
+    GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+    ORDER BY month ASC
+");
+if ($resultRevenue) {
+    while ($row = $resultRevenue->fetch_assoc()) {
+        $monthlyRevenue[] = [
+            'month' => $row['month'],
+            'revenue' => (float)$row['revenue']
+        ];
+    }
+}
+
+$resultOrders = $conn->query("SELECT SUM(stock) AS total_stock FROM products");
+if ($resultOrders) {
+    $row = $resultOrders->fetch_assoc();
+    $totalStock = $row['total_stock'];
+}
+
+
+$resultProducts = $conn->query("SELECT count(*) id from products");
+if ($resultProducts) $itemProduct = $resultProducts->fetch_assoc()['id'] ?? 0;
 
 $resultDelivering = $conn->query("SELECT COUNT(*) as delivering FROM orders WHERE status = 'Chờ xử lý'");
 if ($resultDelivering) $itemsDelivering = $resultDelivering->fetch_assoc()['delivering'];
 
-$resultReviews = $conn->query("SELECT COUNT(*) as reviewed FROM product_reviews");
-if ($resultReviews) $itemsCommented = $resultReviews->fetch_assoc()['reviewed'];
+$resultReviews = $conn->query("SELECT COUNT(*) AS total_users FROM users WHERE username NOT LIKE '%admin%'");
+if ($resultReviews) $itemsCustomer = $resultReviews->fetch_assoc()['total_users'];
 
 // Lấy dữ liệu doanh thu theo tháng
 $monthlyRevenue = [];
@@ -245,6 +308,94 @@ if ($page == 'voucher' && $search) {
         }
     }
 }
+
+// Lấy dữ liệu liên hệ
+$contacts = [];
+if ($page == 'contact' && $search) {
+    $stmt = $conn->prepare("SELECT id, name, email, phone, message, created_at FROM contacts WHERE LOWER(name) LIKE ? OR LOWER(email) LIKE ? OR LOWER(phone) LIKE ? OR LOWER(message) LIKE ?");
+    $searchParam = "%$search%";
+    $stmt->bind_param("ssss", $searchParam, $searchParam, $searchParam, $searchParam);
+    $stmt->execute();
+    $resultContacts = $stmt->get_result();
+    while ($row = $resultContacts->fetch_assoc()) {
+        $contacts[] = $row;
+    }
+    $stmt->close();
+} else {
+    $resultContacts = $conn->query("SELECT id, name, email, message, created_at FROM contact ORDER BY created_at DESC");
+    if ($resultContacts) {
+        while ($row = $resultContacts->fetch_assoc()) {
+            $contacts[] = $row;
+        }
+    }
+}
+
+// Xử lý xóa liên hệ
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['delete_contact']) && isset($_POST['id'])) {
+    $id = $_POST['id'];
+    $stmt = $conn->prepare("DELETE FROM contacts WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $stmt->close();
+    header("Location: ?page=contact");
+    exit();
+}
+
+// Lấy dữ liệu marquee
+$marquees = [];
+if ($page == 'marquee' && $search) {
+    $stmt = $conn->prepare("SELECT id, content, is_active, updated_at FROM marquees WHERE LOWER(content) LIKE ?");
+    $searchParam = "%$search%";
+    $stmt->bind_param("s", $searchParam);
+    $stmt->execute();
+    $resultMarquees = $stmt->get_result();
+    while ($row = $resultMarquees->fetch_assoc()) {
+        $marquees[] = $row;
+    }
+    $stmt->close();
+} else {
+    $resultMarquees = $conn->query("SELECT id, content, is_active, updated_at FROM marquees ORDER BY updated_at DESC");
+    if ($resultMarquees) {
+        while ($row = $resultMarquees->fetch_assoc()) {
+            $marquees[] = $row;
+        }
+    }
+}
+
+// Xử lý CRUD cho marquee
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    if (isset($_POST['add_marquee'])) {
+        $content = $_POST['content'];
+        $is_active = isset($_POST['is_active']) ? 1 : 0;
+        $stmt = $conn->prepare("INSERT INTO marquees (content, is_active) VALUES (?, ?)");
+        $stmt->bind_param("si", $content, $is_active);
+        $stmt->execute();
+        $stmt->close();
+        header("Location: ?page=marquee");
+        exit();
+    }
+    if (isset($_POST['edit_marquee'])) {
+        $id = $_POST['id'];
+        $content = $_POST['content'];
+        $is_active = isset($_POST['is_active']) ? 1 : 0;
+        $stmt = $conn->prepare("UPDATE marquees SET content = ?, is_active = ? WHERE id = ?");
+        $stmt->bind_param("sii", $content, $is_active, $id);
+        $stmt->execute();
+        $stmt->close();
+        header("Location: ?page=marquee");
+        exit();
+    }
+    if (isset($_POST['delete_marquee']) && isset($_POST['id'])) {
+        $id = $_POST['id'];
+        $stmt = $conn->prepare("DELETE FROM marquees WHERE id = ?");
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        $stmt->close();
+        header("Location: ?page=marquee");
+        exit();
+    }
+}
+
 
 // Xử lý CRUD
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -837,6 +988,8 @@ if (isset($_GET['logout'])) {
         <a href="?page=slider" class="<?php echo $page == 'slider' ? 'active' : ''; ?>"><i class="fas fa-images"></i> Slider</a>
         <a href="?page=customer" class="<?php echo $page == 'customer' ? 'active' : ''; ?>"><i class="fas fa-users"></i> Khách hàng</a>
         <a href="?page=voucher" class="<?php echo $page == 'voucher' ? 'active' : ''; ?>"><i class="fas fa-ticket-alt"></i> Voucher</a>
+        <a href="?page=contact" class="<?php echo $page == 'contact' ? 'active' : ''; ?>"><i class="fa-solid fa-envelope"></i> Liên hệ</a>
+        <a href="?page=marquee" class="<?php echo $page == 'marquee' ? 'active' : ''; ?>"><i class="fas fa-bullhorn"></i> Chữ chạy</a>
         <a href="?logout=true"><i class="fas fa-sign-out-alt"></i> Đăng xuất</a>
     </div>
     <div class="content">
@@ -857,28 +1010,247 @@ if (isset($_GET['logout'])) {
         <?php if ($page == 'home'): ?>
             <div class="stats">
                 <div class="stat-box">
-                    <h3><?php echo $totalOrders; ?></h3>
-                    <p>Tổng đơn hàng</p>
+                    <h3><?php echo $totalStock; ?></h3>
+                    <p>Tổng số hàng trong kho</p>
                 </div>
                 <div class="stat-box">
-                    <h3><?php echo $itemsSold; ?></h3>
-                    <p>Số lượng sản phẩm đã bán</p>
+                    <h3><?php echo $itemProduct; ?></h3>
+                    <p>Tổng số hàng</p>
                 </div>
                 <div class="stat-box">
-                    <h3><?php echo $itemsCommented; ?></h3>
-                    <p>Sản phẩm được bình luận</p>
+                    <h3><?php echo $itemsCustomer; ?></h3>
+                    <p>Tổng số khách hàng</p>
                 </div>
             </div>
-            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-            <?php if (empty($monthlyRevenue)): ?>
-                <div style="width: 100%; max-width: 600px; margin: 100px auto; text-align: center; color: #6B7280;">
-                    Chưa có dữ liệu doanh thu để hiển thị.
+            <?php if (empty($monthlyRevenue) && empty($monthlyProductsSold) && empty($monthlyComments)): ?>
+                <div style="text-align: center; color: #6B7280; padding: 20px;">
+                    Chưa có dữ liệu để hiển thị.
                 </div>
             <?php else: ?>
-                <div style="width: 100%; max-width: 600px; margin: 100px auto;">
+                <div style="width: 100%; max-width: 800px; margin: 20px auto;">
                     <canvas id="statsChart"></canvas>
                 </div>
             <?php endif; ?>
+            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+            <script>
+                <?php if (!empty($monthlyRevenue) || !empty($monthlyProductsSold) || !empty($monthlyComments)): ?>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const ctx = document.getElementById('statsChart').getContext('2d');
+                    const initialData = <?php
+                        // Hợp nhất các tháng từ cả ba nguồn dữ liệu
+                        $allMonths = [];
+                        foreach ($monthlyRevenue as $item) {
+                            $allMonths[$item['month']] = true;
+                        }
+                        foreach ($monthlyProductsSold as $item) {
+                            $allMonths[$item['month']] = true;
+                        }
+                        foreach ($monthlyComments as $item) {
+                            $allMonths[$item['month']] = true;
+                        }
+                        ksort($allMonths);
+                        $labels = [];
+                        $revenues = [];
+                        $productsSold = [];
+                        $comments = [];
+                        foreach (array_keys($allMonths) as $month) {
+                            $date = DateTime::createFromFormat('Y-m', $month);
+                            $labels[] = $date->format('m/Y');
+                            // Doanh thu
+                            $revenue = 0;
+                            foreach ($monthlyRevenue as $item) {
+                                if ($item['month'] === $month) {
+                                    $revenue = (float)$item['revenue'];
+                                    break;
+                                }
+                            }
+                            $revenues[] = $revenue;
+                            // Sản phẩm đã bán
+                            $sold = 0;
+                            foreach ($monthlyProductsSold as $item) {
+                                if ($item['month'] === $month) {
+                                    $sold = (int)$item['total_sold'];
+                                    break;
+                                }
+                            }
+                            $productsSold[] = $sold;
+                            // Bình luận
+                            $comment = 0;
+                            foreach ($monthlyComments as $item) {
+                                if ($item['month'] === $month) {
+                                    $comment = (int)$item['total_comments'];
+                                    break;
+                                }
+                            }
+                            $comments[] = $comment;
+                        }
+                        echo json_encode([
+                            'labels' => $labels,
+                            'revenues' => $revenues,
+                            'productsSold' => $productsSold,
+                            'comments' => $comments
+                        ]);
+                    ?>;
+
+                    console.log('Initial Data:', initialData); // Ghi log dữ liệu ban đầu
+
+                    const chart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: initialData.labels,
+                            datasets: [
+                                {
+                                    label: 'Doanh thu',
+                                    data: initialData.revenues,
+                                    backgroundColor: '#EC4899',
+                                    borderColor: '#DB2777',
+                                    borderWidth: 1,
+                                    yAxisID: 'y',
+                                },
+                                {
+                                    label: 'Sản phẩm đã bán',
+                                    data: initialData.productsSold,
+                                    type: 'line',
+                                    borderColor: '#10B981',
+                                    backgroundColor: '#10B981',
+                                    fill: false,
+                                    tension: 0.4,
+                                    yAxisID: 'y1',
+                                },
+                                {
+                                    label: 'Số lượng bình luận',
+                                    data: initialData.comments,
+                                    type: 'line',
+                                    borderColor: '#3B82F6',
+                                    backgroundColor: '#3B82F6',
+                                    fill: false,
+                                    tension: 0.4,
+                                    yAxisID: 'y1',
+                                }
+                            ]
+                        },
+                        options: {
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    position: 'left',
+                                    ticks: {
+                                        callback: function(value) {
+                                            return value.toLocaleString('vi-VN', {
+                                                style: 'currency',
+                                                currency: 'VND'
+                                            });
+                                        }
+                                    },
+                                    title: {
+                                        display: true,
+                                        text: 'Doanh thu (VNĐ)'
+                                    }
+                                },
+                                y1: {
+                                    beginAtZero: true,
+                                    position: 'right',
+                                    grid: {
+                                        drawOnChartArea: false
+                                    },
+                                    ticks: {
+                                        callback: function(value) {
+                                            return value.toLocaleString('vi-VN');
+                                        }
+                                    },
+                                    title: {
+                                        display: true,
+                                        text: 'Số lượng'
+                                    }
+                                },
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Tháng'
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top'
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Thống kê Doanh thu, Sản phẩm và Bình luận Theo Tháng'
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            const datasetLabel = context.dataset.label || '';
+                                            let value = context.parsed.y;
+                                            if (context.datasetIndex === 0) {
+                                                value = value.toLocaleString('vi-VN', {
+                                                    style: 'currency',
+                                                    currency: 'VND'
+                                                });
+                                            } else {
+                                                value = value.toLocaleString('vi-VN');
+                                            }
+                                            return `${datasetLabel}: ${value}`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    function updateChart() {
+                        fetch('get_stats.php')
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error('Network response was not ok');
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                                console.log('Fetched Data:', data); // Ghi log dữ liệu từ get_stats.php
+                                const allMonths = {};
+                                (data.monthlyRevenue || []).forEach(item => allMonths[item.month] = true);
+                                (data.monthlyProductsSold || []).forEach(item => allMonths[item.month] = true);
+                                (data.monthlyComments || []).forEach(item => allMonths[item.month] = true);
+                                const sortedMonths = Object.keys(allMonths).sort();
+                                const labels = sortedMonths.map(month => {
+                                    const date = new Date(month + '-01');
+                                    return date.toLocaleString('vi-VN', {
+                                        month: 'numeric',
+                                        year: 'numeric'
+                                    });
+                                });
+                                const revenues = sortedMonths.map(month => {
+                                    const item = (data.monthlyRevenue || []).find(i => i.month === month);
+                                    return item ? item.revenue : 0;
+                                });
+                                const productsSold = sortedMonths.map(month => {
+                                    const item = (data.monthlyProductsSold || []).find(i => i.month === month);
+                                    return item ? item.total_sold : 0;
+                                });
+                                const comments = sortedMonths.map(month => {
+                                    const item = (data.monthlyComments || []).find(i => i.month === month);
+                                    return item ? item.total_comments : 0;
+                                });
+                                chart.data.labels = labels;
+                                chart.data.datasets[0].data = revenues;
+                                chart.data.datasets[1].data = productsSold;
+                                chart.data.datasets[2].data = comments;
+                                chart.update();
+                            })
+                            .catch(error => {
+                                console.error('Error fetching data:', error);
+                                alert('Không thể cập nhật biểu đồ. Vui lòng thử lại.');
+                            });
+                    }
+
+                    setInterval(updateChart, 10000);
+                    updateChart();
+                });
+                <?php endif; ?>
+            </script>
         <?php elseif ($page == 'category'): ?>
             <div class="search-container">
                 <button class="add-btn" onclick="document.getElementById('add-category-form').classList.add('active')"><i class="fas fa-plus"></i> Thêm danh mục</button>
@@ -1271,7 +1643,7 @@ if (isset($_GET['logout'])) {
                 <div class="inner-search">
                     <form id="customer-search-form" method="GET" action="">
                         <input type="hidden" name="page" value="customer">
-                        <input type="text" name="search" placeholder="Tìm kiếm khách hàng, email, số điện thoại..." value="<?php echo htmlspecialchars($search); ?>">
+                        <input type="text" name="search" placeholder="Tìm kiếm khách hàng, email " value="<?php echo htmlspecialchars($search); ?>">
                         <i class="fas fa-magnifying-glass"></i>
                     </form>
                     <button type="submit" form="customer-search-form" class="search-btn"><i class="fas fa-search"></i> Tìm kiếm</button>
@@ -1480,6 +1852,135 @@ if (isset($_GET['logout'])) {
                 </form>
             </div>
         <?php endif; ?>
+        <?php if ($page == 'contact'): ?>
+    <div class="search-container">
+        <div class="inner-search">
+            <form id="contact-search-form" method="GET" action="">
+                <input type="hidden" name="page" value="contact">
+                <input type="text" name="search" placeholder="Tìm kiếm tên, email, số điện thoại, nội dung..." value="<?php echo htmlspecialchars($search); ?>">
+                <i class="fas fa-magnifying-glass"></i>
+            </form>
+            <button type="submit" form="contact-search-form" class="search-btn"><i class="fas fa-search"></i> Tìm kiếm</button>
+        </div>
+    </div>
+    <div class="table-container">
+        <table class="contact-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tên</th>
+                    <th>Email</th>
+                    <th>Nội dung</th>
+                    <th>Ngày gửi</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($contacts)): ?>
+                    <tr>
+                        <td colspan="7" style="text-align: center;">Không tìm thấy liên hệ nào.</td>
+                    </tr>
+                <?php else: ?>
+                    <?php foreach ($contacts as $contact): ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($contact['id']); ?></td>
+                            <td><?php echo htmlspecialchars($contact['name']); ?></td>
+                            <td><?php echo htmlspecialchars($contact['email']); ?></td>
+                            <td><?php echo htmlspecialchars(substr($contact['message'], 0, 50)) . (strlen($contact['message']) > 50 ? '...' : ''); ?></td>
+                            <td><?php echo htmlspecialchars(date('d/m/Y H:i', strtotime($contact['created_at']))); ?></td>
+                            <td class="actions">
+                                <form method="POST" onsubmit="return confirm('Bạn có chắc muốn xóa?');">
+                                    <input type="hidden" name="id" value="<?php echo $contact['id']; ?>">
+                                    <button type="submit" name="delete_contact" class="delete-btn"><i class="fas fa-trash"></i> Xóa</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+<?php elseif ($page == 'marquee'): ?>
+    <div class="search-container">
+        <button class="add-btn" onclick="document.getElementById('add-marquee-form').classList.add('active')"><i class="fas fa-plus"></i> Thêm Marquee</button>
+        <div class="inner-search">
+            <form id="marquee-search-form" method="GET" action="">
+                <input type="hidden" name="page" value="marquee">
+                <input type="text" name="search" placeholder="Tìm kiếm nội dung marquee..." value="<?php echo htmlspecialchars($search); ?>">
+                <i class="fas fa-magnifying-glass"></i>
+            </form>
+            <button type="submit" form="marquee-search-form" class="search-btn"><i class="fas fa-search"></i> Tìm kiếm</button>
+        </div>
+    </div>
+    <div class="table-container">
+        <table class="marquee-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nội dung</th>
+                    <th>Trạng thái</th>
+                    <th>Ngày cập nhật</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($marquees)): ?>
+                    <tr>
+                        <td colspan="5" style="text-align: center;">Không tìm thấy marquee nào.</td>
+                    </tr>
+                <?php else: ?>
+                    <?php foreach ($marquees as $marquee): ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($marquee['id']); ?></td>
+                            <td><?php echo htmlspecialchars(substr($marquee['content'], 0, 50)) . (strlen($marquee['content']) > 50 ? '...' : ''); ?></td>
+                            <td><?php echo $marquee['is_active'] ? 'Hoạt động' : 'Không hoạt động'; ?></td>
+                            <td><?php echo htmlspecialchars(date('d/m/Y H:i', strtotime($marquee['updated_at']))); ?></td>
+                            <td class="actions">
+                                <button class="edit-btn" onclick="editMarquee(<?php echo $marquee['id']; ?>, '<?php echo addslashes($marquee['content']); ?>', <?php echo $marquee['is_active']; ?>)"><i class="fas fa-edit"></i> Sửa</button>
+                                <form method="POST" onsubmit="return confirm('Bạn có chắc muốn xóa?');">
+                                    <input type="hidden" name="id" value="<?php echo $marquee['id']; ?>">
+                                    <button type="submit" name="delete_marquee" class="delete-btn"><i class="fas fa-trash"></i> Xóa</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+    <div id="add-marquee-form" class="form-container">
+        <h3>Thêm Marquee</h3>
+        <form method="POST" action="">
+            <div class="form-group">
+                <label for="content">Nội dung</label>
+                <textarea id="content" name="content" required></textarea>
+            </div>
+            <div class="form-group">
+                <label for="is_active">Hoạt động</label>
+                <input type="checkbox" id="is_active" name="is_active" value="1" checked>
+            </div>
+            <button type="submit" name="add_marquee" class="submit-btn"><i class="fas fa-save"></i> Thêm</button>
+            <button type="button" onclick="document.getElementById('add-marquee-form').classList.remove('active')" class="add-btn"><i class="fas fa-times"></i> Đóng</button>
+        </form>
+    </div>
+    <div id="edit-marquee-form" class="form-container">
+        <h3>Sửa Marquee</h3>
+        <form method="POST" action="">
+            <input type="hidden" id="edit-id" name="id">
+            <div class="form-group">
+                <label for="edit-content">Nội dung</label>
+                <textarea id="edit-content" name="content" required></textarea>
+            </div>
+            <div class="form-group">
+                <label for="edit-is_active">Hoạt động</label>
+                <input type="checkbox" id="edit-is_active" name="is_active" value="1">
+            </div>
+            <button type="submit" name="edit_marquee" class="submit-btn"><i class="fas fa-save"></i> Lưu</button>
+            <button type="button" onclick="document.getElementById('edit-marquee-form').classList.remove('active')" class="add-btn"><i class="fas fa-times"></i> Đóng</button>
+        </form>
+    </div>
+<?php endif; ?>
+
     </div>
     <script>
         function editCategory(id, name, description) {
@@ -1530,105 +2031,171 @@ if (isset($_GET['logout'])) {
             document.getElementById('edit-is_active').checked = is_active;
             document.getElementById('edit-voucher-form').classList.add('active');
         }
+        function editMarquee(id, content, is_active) {
+    document.getElementById('edit-id').value = id;
+    document.getElementById('edit-content').value = content;
+    document.getElementById('edit-is_active').checked = is_active;
+    document.getElementById('edit-marquee-form').classList.add('active');
+}
         document.getElementById('toggle-sidebar').addEventListener('click', function() {
             document.getElementById('sidebar').classList.toggle('hidden');
         });
-        <?php if (!empty($monthlyRevenue)): ?>
-            document.addEventListener('DOMContentLoaded', function() {
-                const ctx = document.getElementById('statsChart').getContext('2d');
-                const initialData = <?php
-                                    $months = array_map(function ($item) {
-                                        $date = DateTime::createFromFormat('Y-m', $item['month']);
-                                        return $date->format('m/Y');
-                                    }, $monthlyRevenue);
-                                    $revenues = array_map(function ($item) {
-                                        return $item['revenue'];
-                                    }, $monthlyRevenue);
-                                    echo json_encode([
-                                        'labels' => $months,
-                                        'data' => $revenues
-                                    ]);
-                                    ?>;
-                const chart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: initialData.labels,
-                        datasets: [{
+       <?php if (!empty($monthlyRevenue)): ?>
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('statsChart').getContext('2d');
+            const initialData = <?php
+                $months = array_map(function ($item) {
+                    $date = DateTime::createFromFormat('Y-m', $item['month']);
+                    return $date->format('m/Y');
+                }, $monthlyRevenue);
+                $revenues = array_map(function ($item) {
+                    return $item['revenue'];
+                }, $monthlyRevenue);
+                $productsSold = array_map(function ($item) {
+                    return $item['total_sold'];
+                }, $monthlyProductsSold);
+                $comments = array_map(function ($item) {
+                    return $item['total_comments'];
+                }, $monthlyComments);
+                echo json_encode([
+                    'labels' => $months,
+                    'revenues' => $revenues,
+                    'productsSold' => $productsSold,
+                    'comments' => $comments
+                ]);
+            ?>;
+
+            const chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: initialData.labels,
+                    datasets: [
+                        {
                             label: 'Doanh thu',
-                            data: initialData.data,
+                            data: initialData.revenues,
                             backgroundColor: '#EC4899',
                             borderColor: '#DB2777',
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    callback: function(value) {
-                                        return value.toLocaleString('vi-VN', {
-                                            style: 'currency',
-                                            currency: 'VND'
-                                        });
-                                    }
-                                },
-                                title: {
-                                    display: true,
-                                    text: 'Doanh thu (VNĐ)'
-                                }
-                            },
-                            x: {
-                                title: {
-                                    display: true,
-                                    text: 'Tháng'
-                                }
-                            }
+                            borderWidth: 1,
+                            yAxisID: 'y',
                         },
-                        plugins: {
-                            legend: {
-                                display: false
+                        {
+                            label: 'Sản phẩm đã bán',
+                            data: initialData.productsSold,
+                            type: 'line',
+                            borderColor: '#10B981',
+                            backgroundColor: '#10B981',
+                            fill: false,
+                            tension: 0.4,
+                            yAxisID: 'y1',
+                        },
+                        {
+                            label: 'Số lượng bình luận',
+                            data: initialData.comments,
+                            type: 'line',
+                            borderColor: '#3B82F6',
+                            backgroundColor: '#3B82F6',
+                            fill: false,
+                            tension: 0.4,
+                            yAxisID: 'y1',
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            position: 'left',
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString('vi-VN', {
+                                        style: 'currency',
+                                        currency: 'VND'
+                                    });
+                                }
                             },
                             title: {
                                 display: true,
-                                text: 'Thống kê Doanh thu Theo Tháng'
+                                text: 'Doanh thu (VNĐ)'
+                            }
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false
                             },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        return context.dataset.label + ': ' + context.parsed.y.toLocaleString('vi-VN', {
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString('vi-VN');
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Số lượng'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Tháng'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Thống kê Doanh thu, Sản phẩm và Bình luận Theo Tháng'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const datasetLabel = context.dataset.label || '';
+                                    let value = context.parsed.y;
+                                    if (context.datasetIndex === 0) {
+                                        value = value.toLocaleString('vi-VN', {
                                             style: 'currency',
                                             currency: 'VND'
                                         });
+                                    } else {
+                                        value = value.toLocaleString('vi-VN');
                                     }
+                                    return `${datasetLabel}: ${value}`;
                                 }
                             }
                         }
                     }
-                });
-
-                function updateChart() {
-                    fetch('get_stats.php')
-                        .then(response => response.json())
-                        .then(data => {
-                            chart.data.labels = data.monthlyRevenue.map(item => {
-                                const date = new Date(item.month + '-01');
-                                return date.toLocaleString('vi-VN', {
-                                    month: 'numeric',
-                                    year: 'numeric'
-                                });
-                            });
-                            chart.data.datasets[0].data = data.monthlyRevenue.map(item => item.revenue);
-                            chart.update();
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            alert('Không thể cập nhật biểu đồ. Vui lòng thử lại.');
-                        });
                 }
-                setInterval(updateChart, 10000);
-                updateChart();
             });
+
+            function updateChart() {
+                fetch('get_stats.php')
+                    .then(response => response.json())
+                    .then(data => {
+                        chart.data.labels = data.monthlyRevenue.map(item => {
+                            const date = new Date(item.month + '-01');
+                            return date.toLocaleString('vi-VN', {
+                                month: 'numeric',
+                                year: 'numeric'
+                            });
+                        });
+                        chart.data.datasets[0].data = data.monthlyRevenue.map(item => item.revenue);
+                        chart.data.datasets[1].data = data.monthlyProductsSold.map(item => item.total_sold);
+                        chart.data.datasets[2].data = data.monthlyComments.map(item => item.total_comments);
+                        chart.update();
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Không thể cập nhật biểu đồ. Vui lòng thử lại.');
+                    });
+            }
+
+            setInterval(updateChart, 10000);
+            updateChart();
+        });
         <?php endif; ?>
     </script>
 </body>
