@@ -618,6 +618,115 @@ foreach ($reviews as $review) {
                 }
             ],
 
+            //skincare
+
+            12: [{
+                    name: 'Hồng - Vàng - Tím',
+                    img: 'assets/images/a24.jpg',
+                    price: 266000
+                },
+                {
+                    name: 'Hồng - Vàng - Xanh',
+                    img: 'assets/images/a25.jpg',
+                    price: 266000
+                }
+            ],
+            11: [{
+                    name: 'SET A',
+                    img: 'assets/images/a14.jpg',
+                    price: 453000
+                },
+                {
+                    name: 'SET B',
+                    img: 'assets/images/a15.jpg',
+                    price: 453000
+                }
+                
+            ],
+            13: [{
+                    name: 'Mặt nạ COLORKEY LUMINOUS BHA',
+                    img: 'assets/images/a34.jpg',
+                    price: 129000
+                }
+            ],
+
+            //makeup
+
+            14: [{
+                    name: 'Xịt khóa đen',
+                    img: 'assets/images/p144.jpg',
+                    price: 141000
+                },
+                {
+                    name: 'Xịt khóa xanh',
+                    img: 'assets/images/p145.jpg',
+                    price: 141000
+                }
+            ],
+            15: [{
+                    name: 'Mascara COLORKEY',
+                    img: 'assets/images/p154.jpg',
+                    price: 141000
+                }
+                
+            ],
+            16: [{
+                    name: 'Kem lót màu tím',
+                    img: 'assets/images/p164.jpg',
+                    price: 149000
+                },
+                {
+                    name: 'Kem lót màu xanh',
+                    img: 'assets/images/p165.jpg',
+                    price: 149000
+                }
+            ],
+            17: [{
+                    name: 'D-511-2',
+                    img: 'assets/images/p174.jpg',
+                    price: 58000
+                },
+                {
+                    name: 'D-511-3',
+                    img: 'assets/images/p175.jpg',
+                    price: 58000
+                }
+            ],
+            18: [{
+                    name: 'C01-Bản thường',
+                    img: 'assets/images/p184.jpg',
+                    price: 260000
+                },
+                {
+                    name: 'C02-bản thường',
+                    img: 'assets/images/p185.jpg',
+                    price: 260000
+                }
+            ],
+            19: [{
+                    name: '01#',
+                    img: 'assets/images/p194.jpg',
+                    price: 40000
+                },
+                {
+                    name: '02#',
+                    img: 'assets/images/p195.jpg',
+                    price: 40000
+                }
+            ],
+            20: [{
+                    name: 'Pink',
+                    img: 'assets/images/p202.jpg',
+                    price: 250000
+                },
+                {
+                    name: 'Black',
+                    img: 'assets/images/p203.jpg',
+                    price: 250000
+                }
+            ],
+           
+
             //bodycare
 
             21: [{
