@@ -2,6 +2,14 @@
 session_start();
 require_once 'connect.php';
 
+// Truy vấn marquee
+$marquee_content = '';
+$resultMarquee = $conn->query("SELECT content FROM marquees WHERE is_active = 1 LIMIT 1");
+if ($resultMarquee && $resultMarquee->num_rows > 0) {
+    $marquee = $resultMarquee->fetch_assoc();
+    $marquee_content = htmlspecialchars($marquee['content']);
+}
+
 // Truy vấn sliders
 $sliders = [];
 $resultSliders = $conn->query("SELECT image, link FROM sliders ORDER BY `order` ASC");
@@ -46,8 +54,29 @@ if (isset($_SESSION['user_id'])) {
     while ($row = $result->fetch_assoc()) {
         $favorite_products[] = $row['product_id'];
     }
+    $stmt->close();
 }
 
+// Truy vấn footer từ cơ sở dữ liệu
+$footer_data = [
+    'care_links' => [],
+    'about_links' => [],
+    'social_links' => [],
+    'payment_methods' => [],
+    'bottom_text' => ''
+];
+$resultFooter = $conn->query("SELECT section, content FROM footer_settings WHERE is_active = 1");
+if ($resultFooter) {
+    while ($row = $resultFooter->fetch_assoc()) {
+        $section = $row['section'];
+        $content = $section === 'bottom_text' ? $row['content'] : json_decode($row['content'], true);
+        $footer_data[$section] = $content;
+    }
+} else {
+    error_log("SQL Error (footer_settings): " . $conn->error, 3, "errors.log");
+}
+
+// Khởi tạo giỏ hàng
 if (!isset($_SESSION['cart'])) {
     $_SESSION['cart'] = [];
 }
@@ -61,30 +90,29 @@ $stmt = $conn->prepare($sql);
 $stmt->bind_param("s", $session_id);
 $stmt->execute();
 $result = $stmt->get_result();
-
 if ($row = $result->fetch_assoc()) {
     $cart_count = $row['total_quantity'] ?? 0;
 }
+$stmt->close();
 ?>
 
 <!DOCTYPE html>
 <html lang="vi">
-
 <head>
     <meta charset="UTF-8">
-    <title>Chi tiết sản phẩm - Mỹ phẩm</title>
+    <title>Trang chủ - Luna Beauty</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="./assets/fonts/fontawesome-free-6.4.0-web/fontawesome-free-6.4.0-web/css/all.min.css">
 </head>
 <style>
-    /* Ensure header is visible and in natural flow */
+    /* Header styles */
     header {
-        display: block !important;
+        display: block;
         position: relative;
         z-index: 1000;
     }
 
-    /* Mục Khuyến mãi tháng 5 */
+    /* Category promotion */
     .category-promotion {
         margin-top: 10px;
         text-align: center;
@@ -111,7 +139,7 @@ if ($row = $result->fetch_assoc()) {
         background: #c73a5f;
     }
 
-    /* Modal */
+    /* Modal styles */
     .modal {
         display: none;
         position: fixed;
@@ -223,7 +251,7 @@ if ($row = $result->fetch_assoc()) {
         background: #c73a5f;
     }
 
-    /* Nút yêu thích */
+    /* Favorite button */
     .product-actions {
         display: flex;
         gap: 10px;
@@ -255,7 +283,7 @@ if ($row = $result->fetch_assoc()) {
         background: #c73a5f;
     }
 
-    /* Tin Tức Modal Scrollable */
+    /* News modal */
     #tinTucBox {
         max-height: 80vh;
         overflow-y: auto;
@@ -393,30 +421,23 @@ if ($row = $result->fetch_assoc()) {
     }
 
     @keyframes marquee {
-        0% {
-            transform: translateX(100%);
-        }
-
-        100% {
-            transform: translateX(-100%);
-        }
+        0% { transform: translateX(100%); }
+        100% { transform: translateX(-100%); }
     }
 
     .marquee-text:hover {
         animation-play-state: paused;
     }
 </style>
-
 <body>
     <!-- Header -->
     <header>
-        <!-- Top info bar -->
         <div class="top-info">
             <div class="left"></div>
             <div class="right">
                 <?php
                 if (isset($_SESSION['username'])) {
-                    echo "<span>Xin chào <strong>{$_SESSION['username']}</strong></span>";
+                    echo "<span>Xin chào <strong>" . htmlspecialchars($_SESSION['username']) . "</strong></span>";
                 } else {
                     echo '<a href="login.php">Bạn chưa đăng nhập</a>';
                 }
@@ -424,16 +445,14 @@ if ($row = $result->fetch_assoc()) {
             </div>
         </div>
 
-        <!-- Logo + search bar + cart -->
         <div class="topbar">
             <a href="home.php" class="logo">
-                <img src="assets/images/logo1.png" alt="Mỹ Phẩm 563" style="height: 140px;">
+                <img src="assets/images/logo1.png" alt="Luna Beauty" style="height: 140px;">
             </a>
             <form class="search-box" method="GET" action="search.php">
                 <input type="text" name="query" placeholder="Tìm kiếm sản phẩm..." required>
                 <button type="submit"><i class="fas fa-search"></i></button>
             </form>
-
             <div class="icon-container">
                 <a href="cart.php" class="cart-icon">
                     <i class="fas fa-shopping-cart"></i>
@@ -460,14 +479,13 @@ if ($row = $result->fetch_assoc()) {
                     <a href="my_favorites.php" class="settings-item">Yêu thích</a>
                 </div>
                 <div class="settings-section">
-                    <div class="settings-title">Quản lí</div>
+                    <div class="settings-title">Quản lý</div>
                     <?php
                     $username = isset($_SESSION['username']) ? $_SESSION['username'] : '';
                     $isAdmin = stripos($username, 'admin') !== false;
                     ?>
                     <a href="<?php echo $isAdmin ? 'admin.php' : '#'; ?>" class="settings-item" <?php echo !$isAdmin ? 'style="pointer-events: none; opacity: 0.5;"' : ''; ?>>Quản lý trang</a>
-                    <div class="settings-item">Ngôn ngữ / Language<div class="subtext">Tiếng Việt</div>
-                    </div>
+                    <div class="settings-item">Ngôn ngữ / Language<div class="subtext">Tiếng Việt</div></div>
                 </div>
                 <div class="settings-logout">
                     <a href="logout.php"><button>Đăng xuất</button></a>
@@ -475,7 +493,6 @@ if ($row = $result->fetch_assoc()) {
             </div>
         </div>
 
-        <!-- Navbar -->
         <nav class="navbar">
             <a href="home.php"><i class="fa-solid fa-house"></i></a>
             <a href="#" onclick="openGioiThieu()">Giới thiệu</a>
@@ -484,8 +501,7 @@ if ($row = $result->fetch_assoc()) {
             <a href="contact.php">Liên hệ</a>
         </nav>
 
-        <!-- Khung giới thiệu -->
-        <div id="gioiThieuBox" style="display: none; background:rgb(255, 240, 245); padding: 20px; color: black; border-radius: 4px; position: relative; margin-top: 16px">
+        <div id="gioiThieuBox" style="display: none; background: rgb(255, 240, 245); padding: 20px; color: black; border-radius: 4px; position: relative; margin-top: 16px">
             <span onclick="closeGioiThieu()" style="position: absolute; top: 10px; right: 20px; font-size: 24px; cursor: pointer;">×</span>
             <h2>🌸 Giới thiệu về <strong>Luna Beauty</strong></h2>
             <p>Chào bạn đến với <strong>Luna Beauty</strong> – thế giới mỹ phẩm nơi vẻ đẹp tự nhiên được tôn vinh mỗi ngày!</p>
@@ -499,7 +515,6 @@ if ($row = $result->fetch_assoc()) {
             <p><strong>Sứ mệnh:</strong> Chúng tôi tin rằng đẹp là khi bạn tự tin là chính mình.</p>
         </div>
 
-        <!-- Khung tin tức -->
         <div id="tinTucBox" style="display: none;">
             <span onclick="closeTinTuc()" style="position: absolute; top: 10px; right: 20px; font-size: 24px; cursor: pointer;">×</span>
             <h2><i class="fas fa-newspaper"></i> Tin tức mới nhất từ Luna Beauty</h2>
@@ -527,17 +542,6 @@ if ($row = $result->fetch_assoc()) {
     </header>
 
     <!-- Marquee -->
-    <?php
-    // Trong phần đầu của home.php, sau require_once 'connect.php'
-    $marquee_content = '';
-    $resultMarquee = $conn->query("SELECT content FROM marquees WHERE is_active = 1 LIMIT 1");
-    if ($resultMarquee && $resultMarquee->num_rows > 0) {
-        $marquee = $resultMarquee->fetch_assoc();
-        $marquee_content = htmlspecialchars($marquee['content']);
-    }
-    ?>
-
-    <!-- Trong phần HTML của marquee -->
     <div class="marquee-container">
         <div class="marquee-text">
             <?php echo $marquee_content ?: '🌟 Chào mừng bạn đến với Luna Beauty! 🌟'; ?>
@@ -551,23 +555,12 @@ if ($row = $result->fetch_assoc()) {
                 DANH MỤC
             </h3>
             <ul class="category-list">
-                <li class="category-item">
-                    <a href="skincare.php" class="category-item__link">Skincare</a>
-                </li>
-                <li class="category-item">
-                    <a href="makeup.php" class="category-item__link">Makeup</a>
-                </li>
-                <li class="category-item">
-                    <a href="haircare.php" class="category-item__link">Haircare</a>
-                </li>
-                <li class="category-item">
-                    <a href="bodycare.php" class="category-item__link">Bodycare</a>
-                </li>
-                <li class="category-item">
-                    <a href="perfume.php" class="category-item__link">Perfume</a>
-                </li>
+                <li class="category-item"><a href="skincare.php" class="category-item__link">Skincare</a></li>
+                <li class="category-item"><a href="makeup.php" class="category-item__link">Makeup</a></li>
+                <li class="category-item"><a href="haircare.php" class="category-item__link">Haircare</a></li>
+                <li class="category-item"><a href="bodycare.php" class="category-item__link">Bodycare</a></li>
+                <li class="category-item"><a href="perfume.php" class="category-item__link">Perfume</a></li>
             </ul>
-            <!-- Mục Khuyến mãi tháng 6 với biểu tượng món quà -->
             <div class="category-promotion">
                 <a href="javascript:void(0)" class="category-promotion__link" onclick="openPromotionModal()">
                     <i class="fas fa-gift"></i> Khuyến mãi tháng 6
@@ -575,7 +568,6 @@ if ($row = $result->fetch_assoc()) {
             </div>
         </nav>
 
-        <!-- Modal khuyến mãi -->
         <div id="promotionModal" class="modal">
             <div class="modal-content">
                 <span class="close" onclick="closePromotionModal()">×</span>
@@ -610,7 +602,6 @@ if ($row = $result->fetch_assoc()) {
             </div>
         </div>
 
-        <!-- Product List -->
         <div class="product-list">
             <div class="slider-container">
                 <div class="slider">
@@ -674,11 +665,78 @@ if ($row = $result->fetch_assoc()) {
         </div>
     </div>
 
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-column">
+                <h4>CHĂM SÓC KHÁCH HÀNG</h4>
+                <ul>
+                    <?php if (!empty($footer_data['care_links'])): ?>
+                        <?php foreach ($footer_data['care_links'] as $link): ?>
+                            <li><a href="<?php echo htmlspecialchars($link['url']); ?>"><?php echo htmlspecialchars($link['text']); ?></a></li>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <li><a href="#">Trung tâm trợ giúp</a></li>
+                        <li><a href="#">Hướng dẫn mua hàng</a></li>
+                        <li><a href="#">Chính sách đổi trả</a></li>
+                        <li><a href="#">Hướng dẫn thanh toán</a></li>
+                    <?php endif; ?>
+                </ul>
+            </div>
+            <div class="footer-column">
+                <h4>VỀ CHÚNG TÔI</h4>
+                <ul>
+                    <?php if (!empty($footer_data['about_links'])): ?>
+                        <?php foreach ($footer_data['about_links'] as $link): ?>
+                            <li><a href="<?php echo htmlspecialchars($link['url']); ?>"><?php echo htmlspecialchars($link['text']); ?></a></li>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <li><a href="#">Giới thiệu</a></li>
+                        <li><a href="#">Tuyển dụng</a></li>
+                        <li><a href="#">Điều khoản</a></li>
+                        <li><a href="#">Bảo mật</a></li>
+                    <?php endif; ?>
+                </ul>
+            </div>
+            <div class="footer-column">
+                <h4>THEO DÕI CHÚNG TÔI</h4>
+                <ul>
+                    <?php if (!empty($footer_data['social_links'])): ?>
+                        <?php foreach ($footer_data['social_links'] as $link): ?>
+                            <li><a href="<?php echo htmlspecialchars($link['url']); ?>"><i class="<?php echo htmlspecialchars($link['icon']); ?>"></i> <?php echo htmlspecialchars($link['text']); ?></a></li>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <li><a href="#"><i class="fab fa-facebook"></i> Facebook</a></li>
+                        <li><a href="#"><i class="fab fa-instagram"></i> Instagram</a></li>
+                        <li><a href="#"><i class="fab fa-youtube"></i> YouTube</a></li>
+                    <?php endif; ?>
+                </ul>
+            </div>
+            <div class="footer-column">
+                <h4>PHƯƠNG THỨC THANH TOÁN</h4>
+                <div class="payment-icons">
+                    <?php if (!empty($footer_data['payment_methods'])): ?>
+                        <?php foreach ($footer_data['payment_methods'] as $method): ?>
+                            <img src="<?php echo htmlspecialchars($method['image']); ?>" alt="<?php echo htmlspecialchars($method['alt']); ?>">
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <img src="assets/images/payment/visa.png" alt="Visa">
+                        <img src="assets/images/payment/mastercard.png" alt="MasterCard">
+                        <img src="assets/images/payment/cod.png" alt="COD">
+                        <img src="assets/images/payment/momo.png" alt="MoMo">
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p><?php echo htmlspecialchars($footer_data['bottom_text'] ?? '© 2025 Mỹ Phẩm 563. Địa chỉ: 123 Trần Duy Hưng, Hà Nội. ĐKKD: 0123456789.'); ?></p>
+        </div>
+    </footer>
+
     <script src="script.js"></script>
     <script>
         function toggleSettings() {
-            const panel = document.querySelector(".settings-page");
-            panel.classList.toggle("open");
+            document.querySelector(".settings-page").classList.toggle("open");
         }
 
         function closeSettings() {
@@ -728,84 +786,35 @@ if ($row = $result->fetch_assoc()) {
             }
         }
 
-        // Xử lý nút yêu thích
         document.querySelectorAll('.favorite-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const productId = this.getAttribute('data-product-id');
-                const isFavorited = this.classList.contains('favorited');
-
                 fetch('add_to_favorites.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                        body: `product_id=${productId}`
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            if (data.action === 'added') {
-                                this.classList.add('favorited');
-                                this.innerHTML = '<i class="fas fa-heart"></i> Yêu thích';
-                            } else {
-                                this.classList.remove('favorited');
-                                this.innerHTML = '<i class="fas fa-heart"></i> Yêu thích';
-                            }
-                            alert(data.message);
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `product_id=${productId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.action === 'added') {
+                            this.classList.add('favorited');
+                            this.innerHTML = '<i class="fas fa-heart"></i> Yêu thích';
                         } else {
-                            alert(data.message);
+                            this.classList.remove('favorited');
+                            this.innerHTML = '<i class="fas fa-heart"></i> Yêu thích';
                         }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('Đã xảy ra lỗi. Vui lòng thử lại.');
-                    });
+                        alert(data.message);
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Đã xảy ra lỗi. Vui lòng thử lại.');
+                });
             });
         });
     </script>
 </body>
-
-<footer class="footer">
-    <div class="footer-container">
-        <div class="footer-column">
-            <h4>CHĂM SÓC KHÁCH HÀNG</h4>
-            <ul>
-                <li><a href="#">Trung tâm trợ giúp</a></li>
-                <li><a href="#">Hướng dẫn mua hàng</a></li>
-                <li><a href="#">Chính sách đổi trả</a></li>
-                <li><a href="#">Hướng dẫn thanh toán</a></li>
-            </ul>
-        </div>
-        <div class="footer-column">
-            <h4>VỀ CHÚNG TÔI</h4>
-            <ul>
-                <li><a href="#">Giới thiệu</a></li>
-                <li><a href="#">Tuyển dụng</a></li>
-                <li><a href="#">Điều khoản</a></li>
-                <li><a href="#">Bảo mật</a></li>
-            </ul>
-        </div>
-        <div class="footer-column">
-            <h4>THEO DÕI CHÚNG TÔI</h4>
-            <ul>
-                <li><a href="#"><i class="fab fa-facebook"></i> Facebook</a></li>
-                <li><a href="#"><i class="fab fa-instagram"></i> Instagram</a></li>
-                <li><a href="#"><i class="fab fa-youtube"></i> YouTube</a></li>
-            </ul>
-        </div>
-        <div class="footer-column">
-            <h4>PHƯƠNG THỨC THANH TOÁN</h4>
-            <div class="payment-icons">
-                <img src="assets/images/payment/visa.png" alt="Visa">
-                <img src="assets/images/payment/mastercard.png" alt="MasterCard">
-                <img src="assets/images/payment/cod.png" alt="COD">
-                <img src="assets/images/payment/momo.png" alt="MoMo">
-            </div>
-        </div>
-    </div>
-    <div class="footer-bottom">
-        <p>© 2025 Mỹ Phẩm 563. Địa chỉ: 123 Trần Duy Hưng, Hà Nội. ĐKKD: 0123456789.</p>
-    </div>
-</footer>
-
 </html>
