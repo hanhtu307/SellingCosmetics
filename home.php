@@ -9,6 +9,8 @@ if ($resultSliders) {
     while ($row = $resultSliders->fetch_assoc()) {
         $sliders[] = $row;
     }
+} else {
+    error_log("SQL Error (sliders): " . $conn->error, 3, "errors.log");
 }
 
 // Truy vấn sản phẩm khuyến mãi (lấy 8 sản phẩm có price < 1000000)
@@ -18,6 +20,8 @@ if ($resultPromotionProducts) {
     while ($row = $resultPromotionProducts->fetch_assoc()) {
         $promotion_products[] = $row;
     }
+} else {
+    error_log("SQL Error (promotion_products): " . $conn->error, 3, "errors.log");
 }
 
 // Truy vấn sản phẩm nổi bật
@@ -27,6 +31,8 @@ if ($resultFeaturedProducts) {
     while ($row = $resultFeaturedProducts->fetch_assoc()) {
         $featured_products[] = $row;
     }
+} else {
+    error_log("SQL Error (featured_products): " . $conn->error, 3, "errors.log");
 }
 
 // Kiểm tra sản phẩm yêu thích của người dùng (nếu đã đăng nhập)
@@ -71,6 +77,13 @@ if ($row = $result->fetch_assoc()) {
     <link rel="stylesheet" href="./assets/fonts/fontawesome-free-6.4.0-web/fontawesome-free-6.4.0-web/css/all.min.css">
 </head>
 <style>
+    /* Ensure header is visible and in natural flow */
+    header {
+        display: block !important;
+        position: relative;
+        z-index: 1000;
+    }
+
     /* Mục Khuyến mãi tháng 5 */
     .category-promotion {
         margin-top: 10px;
@@ -108,7 +121,7 @@ if ($row = $result->fetch_assoc()) {
         width: 100%;
         height: 100%;
         overflow: auto;
-        background-color: rgba(0,0,0,0.5);
+        background-color: rgba(0, 0, 0, 0.5);
     }
 
     .modal-content {
@@ -119,7 +132,7 @@ if ($row = $result->fetch_assoc()) {
         width: 80%;
         max-width: 1000px;
         position: relative;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     }
 
     .close {
@@ -241,6 +254,157 @@ if ($row = $result->fetch_assoc()) {
     .favorite-btn.favorited:hover {
         background: #c73a5f;
     }
+
+    /* Tin Tức Modal Scrollable */
+    #tinTucBox {
+        max-height: 80vh;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #e84a70 transparent;
+        background: #fff;
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        margin-top: 16px;
+        position: relative;
+    }
+
+    #tinTucBox::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    #tinTucBox::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    #tinTucBox::-webkit-scrollbar-thumb {
+        background: #e84a70;
+        border-radius: 4px;
+    }
+
+    #tinTucBox::-webkit-scrollbar-thumb:hover {
+        background: #c73a5f;
+    }
+
+    #tinTucBox h2 {
+        color: #e84a70;
+        font-size: 28px;
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .news-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+    }
+
+    .news-item {
+        background: #fff;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        display: flex;
+    }
+
+    .news-item:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .news-item img {
+        width: 100%;
+        height: 180px;
+        object-fit: cover;
+        border-bottom: 2px solid #e84a70;
+    }
+
+    .news-content {
+        padding: 15px;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .news-content h3 {
+        font-size: 18px;
+        color: #333;
+        margin: 0 0 10px;
+        font-weight: 600;
+        line-height: 1.4;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+
+    .news-content p {
+        font-size: 14px;
+        color: #666;
+        margin: 0 0 10px;
+        line-height: 1.5;
+    }
+
+    .news-content a {
+        display: inline-block;
+        padding: 8px 16px;
+        background: #e84a70;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        text-align: center;
+        transition: background 0.3s ease;
+        align-self: flex-start;
+    }
+
+    .news-content a:hover {
+        background: #c73a5f;
+    }
+
+    /* Marquee styles */
+    .marquee-container {
+        padding: 10px 0;
+        overflow: hidden;
+        white-space: nowrap;
+        position: relative;
+        clear: both;
+        width: 100%;
+        margin-top: 10px;
+    }
+
+    .marquee-text {
+        display: inline-block;
+        font-size: 16px;
+        color: #e84a70 !important;
+        font-weight: bold;
+        animation: marquee 20s linear infinite;
+        line-height: 24px;
+        min-width: 100%;
+    }
+
+    @keyframes marquee {
+        0% {
+            transform: translateX(100%);
+        }
+
+        100% {
+            transform: translateX(-100%);
+        }
+    }
+
+    .marquee-text:hover {
+        animation-play-state: paused;
+    }
 </style>
 
 <body>
@@ -291,6 +455,11 @@ if ($row = $result->fetch_assoc()) {
                     <a href="bank.php" class="settings-item">Tài khoản / Thẻ ngân hàng</a>
                 </div>
                 <div class="settings-section">
+                    <div class="settings-title">Đơn hàng của tôi</div>
+                    <a href="my_orders.php" class="settings-item">Đơn hàng</a>
+                    <a href="my_favorites.php" class="settings-item">Yêu thích</a>
+                </div>
+                <div class="settings-section">
                     <div class="settings-title">Quản lí</div>
                     <?php
                     $username = isset($_SESSION['username']) ? $_SESSION['username'] : '';
@@ -310,7 +479,7 @@ if ($row = $result->fetch_assoc()) {
         <nav class="navbar">
             <a href="home.php"><i class="fa-solid fa-house"></i></a>
             <a href="#" onclick="openGioiThieu()">Giới thiệu</a>
-            <a href="#" onclick="openDichVu()">Dịch vụ</a>
+            <a href="#" onclick="openTinTuc()">Tin tức</a>
             <a href="vouchers.php">Voucher</a>
             <a href="contact.php">Liên hệ</a>
         </nav>
@@ -330,21 +499,50 @@ if ($row = $result->fetch_assoc()) {
             <p><strong>Sứ mệnh:</strong> Chúng tôi tin rằng đẹp là khi bạn tự tin là chính mình.</p>
         </div>
 
-        <!-- Khung dịch vụ -->
-        <div id="dichVuBox" style="background-color: #fff0f5; padding: 30px; border-radius: 4px; display: none; margin-top: 16px; position: relative;">
-            <span onclick="closeDichVu()" style="position: absolute; top: 10px; right: 20px; font-size: 24px; cursor: pointer;">×</span>
-            <h2 style="color: #e84a70;">
-                <i class="fas fa-concierge-bell"></i> Dịch vụ của Luna Beauty
-            </h2>
-            <ul style="line-height: 1.8; font-size: 16px; list-style: none; padding-left: 0;">
-                <li><i class="fas fa-comments"></i> <strong>Tư vấn chăm sóc da miễn phí</strong> theo từng loại da & tình trạng da.</li>
-                <li><i class="fas fa-shipping-fast"></i> <strong>Giao hàng nhanh toàn quốc</strong>, hỗ trợ kiểm tra trước khi nhận.</li>
-                <li><i class="fas fa-exchange-alt"></i> <strong>Đổi/trả hàng dễ dàng</strong> trong vòng 7 ngày nếu có lỗi.</li>
-                <li><i class="fas fa-gift"></i> <strong>Gói quà miễn phí</strong> – gửi lời chúc yêu thương đến người nhận.</li>
-                <li><i class="fas fa-gem"></i> <strong>Ưu đãi khách hàng thân thiết</strong> – tích điểm & nhận voucher giảm giá.</li>
-            </ul>
+        <!-- Khung tin tức -->
+        <div id="tinTucBox" style="display: none;">
+            <span onclick="closeTinTuc()" style="position: absolute; top: 10px; right: 20px; font-size: 24px; cursor: pointer;">×</span>
+            <h2><i class="fas fa-newspaper"></i> Tin tức mới nhất từ Luna Beauty</h2>
+            <div class="news-list">
+                <?php if (empty($promotion_products)): ?>
+                    <p>Không có tin tức nào hiện tại.</p>
+                <?php else: ?>
+                    <?php foreach ($promotion_products as $product): ?>
+                        <div class="news-item">
+                            <img src="<?php echo htmlspecialchars($product['product_image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>">
+                            <div class="news-content">
+                                <h3><?php echo htmlspecialchars($product['name']); ?></h3>
+                                <p>Giá: <span style="color: #e84a70;"><?php echo number_format($product['price'], 0, ',', '.'); ?>đ</span>
+                                    <?php if ($product['old_price'] > 0): ?>
+                                        <span style="text-decoration: line-through; color: #999;">(<?php echo number_format($product['old_price'], 0, ',', '.'); ?>đ)</span>
+                                    <?php endif; ?>
+                                </p>
+                                <a href="product_detail.php?id=<?php echo htmlspecialchars($product['id']); ?>">Xem chi tiết</a>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
         </div>
     </header>
+
+    <!-- Marquee -->
+    <?php
+    // Trong phần đầu của home.php, sau require_once 'connect.php'
+    $marquee_content = '';
+    $resultMarquee = $conn->query("SELECT content FROM marquees WHERE is_active = 1 LIMIT 1");
+    if ($resultMarquee && $resultMarquee->num_rows > 0) {
+        $marquee = $resultMarquee->fetch_assoc();
+        $marquee_content = htmlspecialchars($marquee['content']);
+    }
+    ?>
+
+    <!-- Trong phần HTML của marquee -->
+    <div class="marquee-container">
+        <div class="marquee-text">
+            <?php echo $marquee_content ?: '🌟 Chào mừng bạn đến với Luna Beauty! 🌟'; ?>
+        </div>
+    </div>
 
     <div class="main-content">
         <nav class="category">
@@ -369,7 +567,7 @@ if ($row = $result->fetch_assoc()) {
                     <a href="perfume.php" class="category-item__link">Perfume</a>
                 </li>
             </ul>
-            <!-- Mục Khuyến mãi tháng 5 với biểu tượng món quà -->
+            <!-- Mục Khuyến mãi tháng 6 với biểu tượng món quà -->
             <div class="category-promotion">
                 <a href="javascript:void(0)" class="category-promotion__link" onclick="openPromotionModal()">
                     <i class="fas fa-gift"></i> Khuyến mãi tháng 6
@@ -380,7 +578,7 @@ if ($row = $result->fetch_assoc()) {
         <!-- Modal khuyến mãi -->
         <div id="promotionModal" class="modal">
             <div class="modal-content">
-                <span class="close" onclick="closePromotionModal()">&times;</span>
+                <span class="close" onclick="closePromotionModal()">×</span>
                 <h2 class="modal-title">Khuyến Mãi Tháng 6</h2>
                 <h3><i>*Chào hè tháng 6 LunaShop chúng tôi giảm giá 20% cho một số sản phẩm, xin cảm ơn quý khách hàng đã luôn ủng hộ cửa hàng của chúng tôi</i></h3>
                 <div class="modal-product-list">
@@ -458,7 +656,7 @@ if ($row = $result->fetch_assoc()) {
                                 <span class="new-price"><?php echo number_format($product['price'], 0, ',', '.'); ?>đ</span>
                             </div>
                             <div class="extra-info">
-                                <span class="rating">⭐ <?php echo htmlspecialchars($product['rating']); ?> | Đã bán <?php echo number_format($product['sold'] / 1000); ?></span>
+                                <span class="rating">★ <?php echo htmlspecialchars($product['rating']); ?> | Đã bán <?php echo number_format($product['sold'], 0, ',', '.'); ?></span>
                                 <span class="location"><?php echo htmlspecialchars($product['location']); ?></span>
                             </div>
                             <div class="product-actions">
@@ -489,32 +687,39 @@ if ($row = $result->fetch_assoc()) {
 
         function openGioiThieu() {
             document.getElementById("gioiThieuBox").style.display = "block";
+            document.body.classList.add("modal-open");
         }
 
         function closeGioiThieu() {
             document.getElementById("gioiThieuBox").style.display = "none";
+            document.body.classList.remove("modal-open");
         }
 
-        function openDichVu() {
-            document.getElementById("dichVuBox").style.display = "block";
+        function openTinTuc() {
+            document.getElementById("tinTucBox").style.display = "block";
+            document.body.classList.add("modal-open");
         }
 
-        function closeDichVu() {
-            document.getElementById("dichVuBox").style.display = "none";
+        function closeTinTuc() {
+            document.getElementById("tinTucBox").style.display = "none";
+            document.body.classList.remove("modal-open");
         }
 
         function openPromotionModal() {
             document.getElementById("promotionModal").style.display = "block";
+            document.body.classList.add("modal-open");
         }
 
         function closePromotionModal() {
             document.getElementById("promotionModal").style.display = "none";
+            document.body.classList.remove("modal-open");
         }
 
         window.onclick = function(event) {
             const modal = document.getElementById("promotionModal");
             if (event.target == modal) {
                 modal.style.display = "none";
+                document.body.classList.remove("modal-open");
             }
             const settingsPage = document.querySelector(".settings-page");
             const settingsIcon = document.querySelector(".setting-icon");
@@ -530,31 +735,31 @@ if ($row = $result->fetch_assoc()) {
                 const isFavorited = this.classList.contains('favorited');
 
                 fetch('add_to_favorites.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: `product_id=${productId}`
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        if (data.action === 'added') {
-                            this.classList.add('favorited');
-                            this.innerHTML = '<i class="fas fa-heart"></i> Yêu thích';
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `product_id=${productId}`
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (data.action === 'added') {
+                                this.classList.add('favorited');
+                                this.innerHTML = '<i class="fas fa-heart"></i> Yêu thích';
+                            } else {
+                                this.classList.remove('favorited');
+                                this.innerHTML = '<i class="fas fa-heart"></i> Yêu thích';
+                            }
+                            alert(data.message);
                         } else {
-                            this.classList.remove('favorited');
-                            this.innerHTML = '<i class="fas fa-heart"></i> Yêu thích';
+                            alert(data.message);
                         }
-                        alert(data.message);
-                    } else {
-                        alert(data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Đã xảy ra lỗi. Vui lòng thử lại.');
-                });
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Đã xảy ra lỗi. Vui lòng thử lại.');
+                    });
             });
         });
     </script>
