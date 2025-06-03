@@ -57,6 +57,17 @@ if (isset($_SESSION['user_id'])) {
     $stmt->close();
 }
 
+// Truy vấn sản phẩm bán chạy nhất (1 sản phẩm có sold cao nhất)
+$best_selling_product = null;
+$resultBestSelling = $conn->query("SELECT id, name, product_image, price, old_price, rating, sold, location FROM products ORDER BY sold DESC LIMIT 1");
+if ($resultBestSelling) {
+    if ($resultBestSelling->num_rows > 0) {
+        $best_selling_product = $resultBestSelling->fetch_assoc();
+    }
+} else {
+    error_log("SQL Error (best_selling_product): " . $conn->error, 3, "errors.log");
+}
+
 // Truy vấn footer từ cơ sở dữ liệu
 $footer_data = [
     'care_links' => [],
@@ -98,6 +109,7 @@ $stmt->close();
 
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <title>Trang chủ - Luna Beauty</title>
@@ -412,7 +424,7 @@ $stmt->close();
 
     .marquee-text {
         display: inline-block;
-        font-size: 16px;
+        font-size: 24px;
         color: #e84a70 !important;
         font-weight: bold;
         animation: marquee 20s linear infinite;
@@ -421,14 +433,192 @@ $stmt->close();
     }
 
     @keyframes marquee {
-        0% { transform: translateX(100%); }
-        100% { transform: translateX(-100%); }
+        0% {
+            transform: translateX(100%);
+        }
+
+        100% {
+            transform: translateX(-100%);
+        }
     }
 
     .marquee-text:hover {
         animation-play-state: paused;
     }
+
+    /* Best-sell styles */
+.best-sell {
+    flex: 0 0 180px;
+    background: #fff;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 20px;
+}
+
+.best-sell .category__heading {
+    font-size: 18px;
+    color: #e84a70;
+    margin-bottom: 10px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.best-sell .product-card {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    width: 100%;
+}
+
+.category__best-sell{
+    width: 180px;
+    margin-top: 70px;
+}
+
+.best-sell .product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.best-sell .product-img {
+    position: relative;
+    width: 100%;
+}
+
+.best-sell .product-img img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-bottom: 1px solid #eee;
+}
+
+.best-sell .badge.discount {
+    position: absolute;
+    top: 10px;
+    background: #ff9800;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.best-sell .product-info {
+    padding: 10px;
+    text-align: center;
+}
+
+.best-sell .product-title {
+    font-size: 14px;
+    margin: 5px 0;
+    height: 40px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    color: #333;
+}
+
+.best-sell .price {
+    margin: 5px 0;
+}
+
+.best-sell .old-price {
+    text-decoration: line-through;
+    color: #999;
+    font-size: 12px;
+    margin-right: 5px;
+}
+
+.best-sell .new-price {
+    color: #e84a70;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.best-sell .extra-info {
+    font-size: 12px;
+    color: #666;
+    margin: 10px 0;
+}
+
+.best-sell .extra-info .rating {
+    display: block;
+}
+
+.best-sell .location {
+    display: block;
+    margin-top: 5px;
+}
+
+.best-sell .product-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.best-sell .view-detail {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    background: #e84a70;
+    color: white;
+    border-radius: 4px;
+    font-size: 12px;
+    text-decoration: none;
+    transition: background 0.3s;
+}
+
+.best-sell .view-detail:hover {
+    background: #c73a5f;
+}
+
+.best-sell .favorite-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    background: #f0f0f0;
+    color: #333;
+    border-radius: 4px;
+    font-size: 12px;
+    text-decoration: none;
+    transition: background 0.3s, color 0.3s;
+}
+
+.best-sell .favorite-btn.favorited {
+    background: #e84a70;
+    color: white;
+}
+
+.best-sell .favorite-btn:hover {
+    background: #d0d0d0;
+}
+
+.best-sell .favorite-btn.favorited:hover {
+    background: #c73a5f;
+}
+
+
+/* Responsive */
+@media (max-width: 768px) {
+    .main-content {
+        flex-direction: column;
+    }
+    .best-sell {
+        flex: 0 0 auto;
+        width: 100%;
+    }
+    .best-sell .product-img img {
+        height: 150px;
+    }
+}
+
 </style>
+
 <body>
     <!-- Header -->
     <header>
@@ -485,7 +675,8 @@ $stmt->close();
                     $isAdmin = stripos($username, 'admin') !== false;
                     ?>
                     <a href="<?php echo $isAdmin ? 'admin.php' : '#'; ?>" class="settings-item" <?php echo !$isAdmin ? 'style="pointer-events: none; opacity: 0.5;"' : ''; ?>>Quản lý trang</a>
-                    <div class="settings-item">Ngôn ngữ / Language<div class="subtext">Tiếng Việt</div></div>
+                    <div class="settings-item">Ngôn ngữ / Language<div class="subtext">Tiếng Việt</div>
+                    </div>
                 </div>
                 <div class="settings-logout">
                     <a href="logout.php"><button>Đăng xuất</button></a>
@@ -663,6 +854,47 @@ $stmt->close();
                 <?php endforeach; ?>
             <?php endif; ?>
         </div>
+        <div class="best-sell">
+    <nav class="category__best-sell">
+        <h4 class="category__heading">SẢN PHẨM BÁN CHẠY</h4>
+        <?php if ($best_selling_product): ?>
+            <div class="product-card" data-id="<?php echo htmlspecialchars($best_selling_product['id']); ?>">
+                <div class="product-img">
+                    <img src="<?php echo htmlspecialchars($best_selling_product['product_image']); ?>" alt="<?php echo htmlspecialchars($best_selling_product['name']); ?>">
+                    <?php
+                    $discount = $best_selling_product['old_price'] > 0 ? round((($best_selling_product['old_price'] - $best_selling_product['price']) / $best_selling_product['old_price']) * 100) : 0;
+                    if ($discount > 0):
+                    ?>
+                        <span class="badge discount">-<?php echo $discount; ?>%</span>
+                    <?php endif; ?>
+                </div>
+                <div class="product-info">
+                    <h3 class="product-title"><?php echo htmlspecialchars($best_selling_product['name']); ?></h3>
+                    <div class="price">
+                        <?php if ($best_selling_product['old_price'] > 0): ?>
+                            <span class="old-price"><?php echo number_format($best_selling_product['old_price'], 0, ',', '.'); ?>đ</span>
+                        <?php endif; ?>
+                        <span class="new-price"><?php echo number_format($best_selling_product['price'], 0, ',', '.'); ?>đ</span>
+                    </div>
+                    <div class="extra-info">
+                        <span class="rating">★ <?php echo htmlspecialchars($best_selling_product['rating']); ?> | Đã bán <?php echo number_format($best_selling_product['sold'], 0, ',', '.'); ?></span>
+                        <span class="location"><?php echo htmlspecialchars($best_selling_product['location']); ?></span>
+                    </div>
+                    <div class="product-actions">
+                        <a href="product_detail.php?id=<?php echo htmlspecialchars($best_selling_product['id']); ?>" class="view-detail">
+                            <i class="fas fa-eye"></i> Xem chi tiết
+                        </a>
+                        <a href="javascript:void(0)" class="favorite-btn <?php echo in_array($best_selling_product['id'], $favorite_products) ? 'favorited' : ''; ?>" data-product-id="<?php echo htmlspecialchars($best_selling_product['id']); ?>">
+                            <i class="fas fa-heart"></i> Yêu thích
+                        </a>
+                    </div>
+                </div>
+            </div>
+        <?php else: ?>
+            <p>Không có sản phẩm bán chạy nào.</p>
+        <?php endif; ?>
+    </nav>
+</div>
     </div>
 
     <!-- Footer -->
@@ -790,31 +1022,34 @@ $stmt->close();
             button.addEventListener('click', function() {
                 const productId = this.getAttribute('data-product-id');
                 fetch('add_to_favorites.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `product_id=${productId}`
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        if (data.action === 'added') {
-                            this.classList.add('favorited');
-                            this.innerHTML = '<i class="fas fa-heart"></i> Yêu thích';
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: `product_id=${productId}`
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (data.action === 'added') {
+                                this.classList.add('favorited');
+                                this.innerHTML = '<i class="fas fa-heart"></i> Yêu thích';
+                            } else {
+                                this.classList.remove('favorited');
+                                this.innerHTML = '<i class="fas fa-heart"></i> Yêu thích';
+                            }
+                            alert(data.message);
                         } else {
-                            this.classList.remove('favorited');
-                            this.innerHTML = '<i class="fas fa-heart"></i> Yêu thích';
+                            alert(data.message);
                         }
-                        alert(data.message);
-                    } else {
-                        alert(data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Đã xảy ra lỗi. Vui lòng thử lại.');
-                });
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Đã xảy ra lỗi. Vui lòng thử lại.');
+                    });
             });
         });
     </script>
 </body>
+
 </html>
