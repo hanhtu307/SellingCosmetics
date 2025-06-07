@@ -27,6 +27,7 @@ $voucher_id = $order_temp['voucher_id'] ?? null;
 
 // Lấy user_id
 $user_id = $_SESSION['user_id'];
+$username = $_SESSION['username'];
 
 // Lấy phương thức thanh toán từ bảng orders
 $sql = "SELECT payment_method FROM orders WHERE id = ? AND user_id = ?";
@@ -75,28 +76,84 @@ $recipient_name = $address_parts[0] ?? '';
 $recipient_phone = $address_parts[1] ?? '';
 $address_details = $address_parts[2] ?? $address_value;
 
-// Xử lý khi nhấn xác nhận COD
+// Trong phần xử lý khi nhấn xác nhận COD
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['confirm_order'])) {
-    // Cập nhật trạng thái đơn hàng
-    $sql = "UPDATE orders SET status = 'Đã xác nhận' WHERE id = ? AND user_id = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ii", $order_id, $user_id);
-    $stmt->execute();
+    // Bắt đầu giao dịch
+    $conn->begin_transaction();
+    
+    try {
+        // Cập nhật trạng thái đơn hàng thành "Chờ xử lý"
+        $sql = "UPDATE orders SET status = 'Chờ xử lý' WHERE id = ? AND user_id = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("ii", $order_id, $user_id);
+        $stmt->execute();
 
-    // Xóa các mục trong cart_items dựa trên session_id
-    $session_id = session_id();
-    $sql = "DELETE FROM cart_items WHERE session_id = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("s", $session_id);
-    $stmt->execute();
+        // Lấy ID của admin
+        $sql = "SELECT id FROM users WHERE username LIKE '%admin%' LIMIT 1";
+        $stmt_admin = $conn->prepare($sql);
+        $stmt_admin->execute();
+        $admin_result = $stmt_admin->get_result();
+        if ($admin_result->num_rows > 0) {
+            $admin_id = $admin_result->fetch_assoc()['id'];
+        } else {
+            throw new Exception("Không tìm thấy tài khoản admin!");
+        }
+        $stmt_admin->close();
 
-    // Xóa session sau khi xác nhận thành công
-    unset($_SESSION['checkout_items']);
-    unset($_SESSION['order_temp']);
+        // Tạo thông báo cho admin
+        $message = "Đơn hàng mới #{$order_id} từ người dùng {$username} cần được xác nhận.";
+        $sql = "INSERT INTO notifications (user_id, order_id, message, is_read, created_at) VALUES (?, ?, ?, 0, NOW())";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("iis", $admin_id, $order_id, $message);
+        $stmt->execute();
 
-    // Chuyển hướng đến trang thành công với order_id
-    header("Location: order_success.php?order_id=$order_id");
-    exit();
+        // Cập nhật sold và stock cho từng sản phẩm trong đơn hàng
+        foreach ($cart_items as $item) {
+            $product_id = $item['product_id'];
+            $quantity = $item['quantity'];
+
+            // Cập nhật cột sold (tăng) và stock (giảm)
+            $sql = "UPDATE products SET sold = sold + ?, stock = stock - ? WHERE id = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("iii", $quantity, $quantity, $product_id);
+            $stmt->execute();
+
+            // Kiểm tra nếu stock < 0, báo lỗi và rollback
+            $sql = "SELECT stock FROM products WHERE id = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("i", $product_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $product = $result->fetch_assoc();
+
+            if ($product['stock'] < 0) {
+                throw new Exception("Sản phẩm " . htmlspecialchars($item['product_name']) . " đã hết hàng!");
+            }
+        }
+
+        // Xóa các mục trong cart_items dựa trên session_id
+        $session_id = session_id();
+        $sql = "DELETE FROM cart_items WHERE session_id = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("s", $session_id);
+        $stmt->execute();
+
+        // Commit giao dịch
+        $conn->commit();
+
+        // Xóa session sau khi xác nhận thành công
+        unset($_SESSION['checkout_items']);
+        unset($_SESSION['order_temp']);
+
+        // Chuyển hướng đến trang thành công với order_id
+        header("Location: order_success.php?order_id=$order_id");
+        exit();
+    } catch (Exception $e) {
+        // Rollback giao dịch nếu có lỗi
+        $conn->rollback();
+        echo "<h3 style='color:red;text-align:center;'>Lỗi: " . htmlspecialchars($e->getMessage()) . "</h3>";
+        exit();
+    }
 }
 ?>
 
@@ -111,7 +168,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['confirm_order'])) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <style>
-    /* Giữ nguyên CSS từ mã gốc */
     * {
         margin: 0;
         padding: 0;
